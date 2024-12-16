@@ -2,9 +2,16 @@ import minimalmodbus
 import serial
 import serial as pyserial
 import time
-import keyboard
 
- 
+import serial.tools.list_ports
+
+def list_serial_ports():
+    """List all available serial ports that match the pattern /dev/tty.*."""
+    ports = serial.tools.list_ports.comports()
+    print("All available serial ports:")
+    for port in ports:
+        print(f"Port: {port.device}, Description: {port.description}, HWID: {port.hwid}")
+
 # Configuration
 PORT = '/dev/tty.usbserial-A10KVO9S'  # Replace with the correct port for your system
 SLAVE_ADDRESS = 1      # Replace with the MODBUS device address
@@ -88,4 +95,6 @@ def main():
         time.sleep(1)  # Read every second
  
 if __name__ == "__main__":
+    list_serial_ports()
+    PORT = input("Enter the port name: ")
     main()
