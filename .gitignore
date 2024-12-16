@@ -1,0 +1,4 @@
+.venv
+*.pyc
+*pv1_log.txt
+*pv2_log.txt
