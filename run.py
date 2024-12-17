@@ -1,7 +1,7 @@
-import minimalmodbus
-import serial
-import serial as pyserial
+import csv
 import time
+import minimalmodbus
+import serial as pyserial
 
 import serial.tools.list_ports
 
@@ -25,22 +25,20 @@ NUM_REGISTERS = 1      # Number of registers to read
 REGISTER_SCALE = 1    # Scale factor for temperature (e.g., divide by 10 if temperature is reported as 123 for 12.3)
 
 timestamp = time.strftime("%Y-%m-%d_%H.%M.%S")
-PV1_LOG_FILE = f'{timestamp}_pv1_log.txt'  # Log file path for PV1
-PV2_LOG_FILE = f'{timestamp}_pv2_log.txt'  # Log file path for PV2
- 
-logging_active = False
- 
-def log_pv1(pv1):
-    """Log PV1 data to a file with a timestamp."""
-    with open(PV1_LOG_FILE, 'a') as file:
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        file.write(f"{timestamp} - PV1: {pv1:.2f} \u00b0C\n")
- 
-def log_pv2(pv2):
-    """Log PV2 data to a file with a timestamp."""
-    with open(PV2_LOG_FILE, 'a') as file:
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        file.write(f"{timestamp} - PV2: {pv2:.2f} \u00b0C\n")
+ # Assuming the rest of your code is already defined above
+
+CSV_FILE = f'{timestamp}_temperature_log.csv'
+
+def initialize_csv():
+    with open(CSV_FILE, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Timestamp', 'PV1 (°C)', 'PV2 (°C)'])
+
+def log_to_csv(pv1, pv2):
+    with open(CSV_FILE, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        writer.writerow([timestamp, pv1, pv2])
  
 def read_temperature():
     """Read temperature data from the sensor."""
@@ -78,22 +76,23 @@ def main():
     global logging_active
     print("Type 'start' to begin logging and press 'Esc' to stop and save the file.")
     logging_active = True
- 
+
+    initialize_csv()
+
     while True:
         try:
             if logging_active:
                 pv1, pv2 = read_temperature()
                 if pv1 is not None and pv2 is not None:
                     print(f"PV1: {pv1:.2f} \u00b0C, PV2: {pv2:.2f} \u00b0C")
-                    log_pv1(pv1)
-                    log_pv2(pv2)
+                    log_to_csv(pv1, pv2)
                 else:
                     print("Failed to read temperature.")
                 
         except KeyboardInterrupt:
             break
         time.sleep(1)  # Read every second
- 
+
 if __name__ == "__main__":
     list_serial_ports()
     PORT = input("Enter the port name: ")
