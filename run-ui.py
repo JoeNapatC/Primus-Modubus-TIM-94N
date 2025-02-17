@@ -16,6 +16,8 @@ STOP_BITS = 1          # Number of stop bits
 BYTE_SIZE = 8          # Data byte size
 PV1_REGISTER_ADDRESS = 0  # The MODBUS register for PV1 (replace with your sensor's register address)
 PV2_REGISTER_ADDRESS = 1  # The MODBUS register for PV2
+PV3_REGISTER_ADDRESS = 2  # The MODBUS register for PV3
+PV4_REGISTER_ADDRESS = 3  # The MODBUS register for PV4
 NUM_REGISTERS = 1      # Number of registers to read
 REGISTER_SCALE = 1    # Scale factor for temperature (e.g., divide by 10 if temperature is reported as 123 for 12.3)
 
@@ -38,13 +40,13 @@ def list_serial_ports():
 def initialize_csv():
     with open(CSV_FILE, mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Timestamp', 'PV1 (°C)', 'PV2 (°C)'])
+        writer.writerow(['Timestamp', 'PV1 (°C)', 'PV2 (°C)', 'PV3 (°C)', 'PV4 (°C)'])
 
-def log_to_csv(pv1, pv2):
+def log_to_csv(pv1, pv2, pv3, pv4):
     with open(CSV_FILE, mode='a', newline='') as file:
         writer = csv.writer(file)
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-        writer.writerow([timestamp, pv1, pv2])
+        writer.writerow([timestamp, pv1, pv2, pv3, pv4])
 
 def read_temperature():
     """Read temperature data from the sensor."""
@@ -56,26 +58,30 @@ def read_temperature():
         instrument.serial.bytesize = BYTE_SIZE
         instrument.serial.timeout = 1  # Seconds
 
-        # Read registers for PV1 and PV2
+        # Read registers for PV1, PV2, PV3, and PV4
         raw_data_pv1 = instrument.read_register(PV1_REGISTER_ADDRESS, NUM_REGISTERS, functioncode=3)
         raw_data_pv2 = instrument.read_register(PV2_REGISTER_ADDRESS, NUM_REGISTERS, functioncode=3)
+        raw_data_pv3 = instrument.read_register(PV3_REGISTER_ADDRESS, NUM_REGISTERS, functioncode=3)
+        raw_data_pv4 = instrument.read_register(PV4_REGISTER_ADDRESS, NUM_REGISTERS, functioncode=3)
         pv1 = raw_data_pv1 / REGISTER_SCALE  # Apply scale factor
         pv2 = raw_data_pv2 / REGISTER_SCALE  # Apply scale factor
+        pv3 = raw_data_pv3 / REGISTER_SCALE  # Apply scale factor
+        pv4 = raw_data_pv4 / REGISTER_SCALE  # Apply scale factor
 
-        return pv1, pv2
+        return pv1, pv2, pv3, pv4
 
     except minimalmodbus.NoResponseError as e:
         print(f"No response from the device: {e}")
-        return None, None
+        return None, None, None, None
     except minimalmodbus.InvalidResponseError as e:
         print(f"Invalid response from the device: {e}")
-        return None, None
+        return None, None, None, None
     except pyserial.SerialException as e:
         print(f"Serial communication error: {e}")
-        return None, None
+        return None, None, None, None
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-        return None, None
+        return None, None, None, None
 
 def start_logging():
     global logging_active
@@ -104,14 +110,18 @@ def stop_logging():
 def log_temperature():
     initialize_csv()
     while logging_active:
-        pv1, pv2 = read_temperature()
-        if pv1 is not None and pv2 is not None:
-            print(f"PV1: {pv1:.2f} \u00b0C, PV2: {pv2:.2f} \u00b0C")
-            log_to_csv(pv1, pv2)
+        pv1, pv2, pv3, pv4 = read_temperature()
+        if pv1 is not None and pv2 is not None and pv3 is not None and pv4 is not None:
+            print(f"PV1: {pv1:.2f} \u00b0C, PV2: {pv2:.2f} \u00b0C, PV3: {pv3:.2f} \u00b0C, PV4: {pv4:.2f} \u00b0C")
+            log_to_csv(pv1, pv2, pv3, pv4)
             pv1_gauge['value'] = pv1
             pv2_gauge['value'] = pv2
+            pv3_gauge['value'] = pv3
+            pv4_gauge['value'] = pv4
             pv1_label.config(text=f"PV1: {pv1:.2f} \u00b0C")
             pv2_label.config(text=f"PV2: {pv2:.2f} \u00b0C")
+            pv3_label.config(text=f"PV3: {pv3:.2f} \u00b0C")
+            pv4_label.config(text=f"PV4: {pv4:.2f} \u00b0C")
         else:
             print("Failed to read temperature.")
         time.sleep(1)  # Read every second
@@ -149,6 +159,17 @@ pv2_label = tk.Label(root, text="PV2: 0.00 \u00b0C")
 pv2_label.pack(pady=5)
 pv2_gauge = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate", maximum=150)
 pv2_gauge.pack(pady=5)
+
+# Create and place the gauges for PV3 and PV4
+pv3_label = tk.Label(root, text="PV3: 0.00 \u00b0C")
+pv3_label.pack(pady=5)
+pv3_gauge = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate", maximum=150)
+pv3_gauge.pack(pady=5)
+
+pv4_label = tk.Label(root, text="PV4: 0.00 \u00b0C")
+pv4_label.pack(pady=5)
+pv4_gauge = ttk.Progressbar(root, orient="horizontal", length=300, mode="determinate", maximum=150)
+pv4_gauge.pack(pady=5)
 
 # Create and place the label for CSV file name
 csv_label = tk.Label(root, text="")
